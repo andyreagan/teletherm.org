@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=9"/>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    
+    <title>teletherm.org</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="application-name" content="Teletherm"/>
+    <meta name="description" content="Teletherm.org connects global climate change dynamics to changing local weather."/>
+    <meta name="developer" content="Andy Reagan, UVM"/>
+    
+    
+    <link href="css/site.css" rel="stylesheet">
+    <link href="css/teletherm.css" rel="stylesheet">
+    <!-- <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" /> -->
+    <!-- <link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.css' rel='stylesheet' /> -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+	<script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+  </head>
+
+  <body>
+    <nav class="navbar navbar-default navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="index.html">teletherm.org</a>
+        </div>
+        <div id="navbar" class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Maps <span class="caret"></span></a>
+              <ul class="dropdown-menu">
+                <li><a href="map-dynamic.html">Dynamic map</a></li>
+                <li><a href="map-static.html">Small multiples</a></li>
+		<!-- <li role="separator" class="divider"></li> -->
+		<!-- <li><a href="/instruments/teletherms/" class="submenu">Others?</a></li>                 -->
+              </ul>
+            </li>
+            <li class="dropdown">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Stations <span class="caret"></span></a>
+              <ul class="dropdown-menu">
+                <li><a href="city-splat.html">Teletherm splat</a></li>
+                <li><a href="city-NYT.html">NYT Viz</a></li>		
+                <li><a href="city-timeseries.html">Over time</a></li>
+              </ul>
+            </li>
+            <li><a href="about.html">About</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </nav>
+    
+    <div class="container">
+      <br>
+      <br>
+      <br>
+      <br>
+      <div class="row">
+        <div class="row">
+          <div class="col-xs-12 col-sm-offset-2 col-sm-8">
+            <!-- <button type="button" class="btn btn-default btn-lg">left</button> -->
+            <div class="input-group">
+              <div class="input-group" id="top">
+                <span class="input-group-btn">
+                  <button class="btn btn-default" type="button" id="leftarrow"><i class="fa fa-arrow-left" aria-hidden="true"></i></button>
+                </span>
+                <input type="text" class="form-control text-center" aria-label="..." id="myinput" value="" placeholder="Search for a station">
+                <span class="input-group-btn">
+                  <button class="btn btn-default" type="button" id="rightarrow"><i class="fa fa-arrow-right" aria-hidden="true"></i></button>
+                </span>
+              </div><!-- /input-group -->              
+              <div class="btn-group btn-group-justified" role="group" aria-label="...">
+                <div class="btn-group" role="group">
+                  <button type="button" class="btn btn-default" id="locationbutton"><i class="fa fa-location-arrow" aria-hidden="true"></i> My location</button>
+                </div>
+                <div class="btn-group" role="group">
+                  <button type="button" class="btn btn-default" id="randombutton">Random</button>
+                </div>                
+                <div class="btn-group" role="group">
+                  <div class="dropdown">
+                    <button class="btn btn-default dropdown-toggle" type="button" id="selectedmenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                      Selected stations
+                      <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu pull-right text-right" aria-labelledby="selectedmenu">
+                      <li class="text-right" id="hottest"><a href="#">Hottest: Death Valley, CA</a></li>
+                      <li class="text-right" id="coldest"><a href="#">Coldest: Willow City, ND</a></li>
+                      <li class="text-right" id="earliest-summer"><a href="#">Earliest summer: Alpine, TX</a></li>
+                      <li class="text-right" id="earliest-winter"><a href="#">Earliest winter: Anaconda, MT</a></li>
+                      <li class="text-right" id="latest-summer"><a href="#">Latest summer: Santa Cruz, CA</a></li>
+                      <li class="text-right" id="latest-winter"><a href="#">Latest winter: Chatham, MI</a></li>
+                      <!-- <li><a href="#"></a></li> -->
+                    </ul>
+                  </div>                  
+                  <!-- <button type="button" class="btn btn-default" id="selectedmenu">Selected <span class="caret"></span></button> -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div> <!-- row -->
+      <div class="row">
+        <h3 id="stationname"></h3>
+        <div class="col-xs-12 col-md-4" id="figure1">
+        </div> <!-- col -->
+        <div class="col-xs-12 col-md-4" id="figure2">
+        </div> <!-- col -->
+        <div class="col-xs-12 col-md-4" id="figure3">
+        </div> <!-- col -->
+        <!-- <h3 id="stationname"></h3> -->
+        <!-- <div id="figure"></div> -->
+        <!-- </div> <\!-- col -\-> -->
+      </div> <!-- row -->
+    <!-- </div> <\!-- col -\-> -->
+    <br>
+    <br>
+    </div> <!-- container -->
+
+    <script src="js/jquery-1.11.0.min.js"></script>
+    <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-scrollTo/2.1.0/jquery.scrollTo.min.js"></script>-->
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/d3.js"></script>
+    <script src="js/fisheye.js"></script>    
+    <script src="js/science.v1.js"></script>
+    <script src="js/queue.min.js"></script>
+    <script src="js/topojson.v1.min.js"></script>
+    <script src="js/typeahead.bundle.js"></script>
+    <script src="js/urllib.js"></script>
+    <script src="js/hedotools.init.js"></script>
+    <script src="js/hedotools.map.js"></script>
+    <!-- base data loading -->
+    <script src="js/stations.js"></script>
+    <!-- this is only script that changes on the page -->
+    <script src="js/processData-splat.js"></script>
+    <!-- these are the three visualizations -->
+    <script src="js/cityNYT.js"></script>
+    <script src="js/citySplat.js"></script>
+    <script src="js/cityTimeseries.js"></script>
+    <!-- main loader, search bar handling -->
+    <script src="js/teletherm-cityDynamics.js"></script>
+  </body>
+</html>
+
+
