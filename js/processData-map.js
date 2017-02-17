@@ -326,123 +326,73 @@ var processData = function(error,results) {
     }
 
     // callback function here...
-    var a_index = 0;
-    var index = smoothed_years.indexOf(acceptable_years[a_index]);
-    end_year = acceptable_years[a_index];
-    start_year = end_year-local_window+1;
+    // var a_index = 0;
+    // var index = smoothed_years.indexOf(acceptable_years[a_index]);
+    // end_year = acceptable_years[a_index];
+    index = yearIndex;
+    console.log(yearIndex);
+    end_year = full_year_range[yearIndex]+25;
+    start_year = end_year-local_window;
     var viz1 = citySplat();
     console.log(index);
     console.log(all_summer_extents[index]);
-    viz1.plot(all_tmax_avg[index],all_summer_dates[index],all_summer_extents[index],all_tmax_avg_smoothed[index],all_tmin_avg[index],all_winter_dates[index],all_winter_extents[index],all_tmin_avg_smoothed[index],"#figure1",start_year+"&ndash;"+end_year);
-
-    var a_index = Math.floor(acceptable_years.length/2);
-    var index = smoothed_years.indexOf(acceptable_years[a_index]);
-    end_year = acceptable_years[a_index];
-    start_year = end_year-local_window+1;
-    var viz1 = citySplat();
-    viz1.plot(all_tmax_avg[index],all_summer_dates[index],all_summer_extents[index],all_tmax_avg_smoothed[index],all_tmin_avg[index],all_winter_dates[index],all_winter_extents[index],all_tmin_avg_smoothed[index],"#figure2",start_year+"&ndash;"+end_year);
-
-    var a_index = acceptable_years.length-1;
-    var index = smoothed_years.indexOf(acceptable_years[a_index]);
-    end_year = acceptable_years[a_index];
-    start_year = end_year-local_window+1;
-    var viz1 = citySplat();
-    console.log(index);
-    console.log(all_summer_extents[index]);    
-    viz1.plot(all_tmax_avg[index],all_summer_dates[index],all_summer_extents[index],all_tmax_avg_smoothed[index],all_tmin_avg[index],all_winter_dates[index],all_winter_extents[index],all_tmin_avg_smoothed[index],"#figure3",start_year+"&ndash;"+end_year);    
+    viz1.plot(all_tmax_avg[index],all_summer_dates[index],all_summer_extents[index],all_tmax_avg_smoothed[index],all_tmin_avg[index],all_winter_dates[index],all_winter_extents[index],all_tmin_avg_smoothed[index],"#figure",start_year+"&ndash;"+end_year);    
 
 
-    tmin_raw_mins = Array();
-    tmin_raw_good_years = Array();
-    for (var i=0; i<combined_years.length; i++) {
-        if (winter_data_coverage[i] > .50) {
-            var my_min = 100;
-            for (var j=0; j<tmin_raw[i].length; j++) {
-                if (tmin_raw[i][j] < my_min && tmin_raw[i][j] > -9000) {
-                    my_min = tmin_raw[i][j];
-                }
-            }
-            tmin_raw_mins.push(my_min)
-            tmin_raw_good_years.push(combined_years[i]);
-        }
-    }
-    tmax_raw_maxs = Array();
-    tmax_raw_good_years = Array();
-    for (var i=0; i<combined_years.length; i++) {
-        if (summer_data_coverage[i] > .50) {
-            tmax_raw_maxs.push(d3.max(tmax_raw[i]));
-            tmax_raw_good_years.push(combined_years[i]);
-        }
-    }
+    // tmin_raw_mins = Array();
+    // tmin_raw_good_years = Array();
+    // for (var i=0; i<combined_years.length; i++) {
+    //     if (winter_data_coverage[i] > .50) {
+    //         var my_min = 100;
+    //         for (var j=0; j<tmin_raw[i].length; j++) {
+    //             if (tmin_raw[i][j] < my_min && tmin_raw[i][j] > -9000) {
+    //                 my_min = tmin_raw[i][j];
+    //             }
+    //         }
+    //         tmin_raw_mins.push(my_min)
+    //         tmin_raw_good_years.push(combined_years[i]);
+    //     }
+    // }
+    // tmax_raw_maxs = Array();
+    // tmax_raw_good_years = Array();
+    // for (var i=0; i<combined_years.length; i++) {
+    //     if (summer_data_coverage[i] > .50) {
+    //         tmax_raw_maxs.push(d3.max(tmax_raw[i]));
+    //         tmax_raw_good_years.push(combined_years[i]);
+    //     }
+    // }
 
-    var get_good_years = function(all,acceptable,data) {
-        var filtereddata = Array();
-        for (var i=0; i<all.length; i++) {
-            if (acceptable.indexOf(all[i]) > -1) {
-                filtereddata.push(data[i]);
-            }
-        }
-        return filtereddata;
-    }
+    // var get_good_years = function(all,acceptable,data) {
+    //     var filtereddata = Array();
+    //     for (var i=0; i<all.length; i++) {
+    //         if (acceptable.indexOf(all[i]) > -1) {
+    //             filtereddata.push(data[i]);
+    //         }
+    //     }
+    //     return filtereddata;
+    // }
 
-    var timeseries = cityTimeseries();
-    d3.selectAll("#T_time_series_summer").remove();
-    d3.selectAll("#teledates_summer").remove();
-    d3.selectAll("#T_time_series_winter").remove();
-    d3.selectAll("#teledates_winter").remove();
+    // var timeseries = cityTimeseries();
+    // d3.selectAll("#T_time_series_summer").remove();
+    // d3.selectAll("#teledates_summer").remove();
+    // d3.selectAll("#T_time_series_winter").remove();
+    // d3.selectAll("#teledates_winter").remove();
     // timeseries.plot_all(combined_years.length,flattened_summer_extents,flattened_winter_extents,local_window);
-    timeseries.plot_T(local_window,"summer","red",
-                      get_good_years(smoothed_years,acceptable_years,all_tmax_avg.map(function(d) { return d3.max(d); })),
-                      get_good_years(smoothed_years,acceptable_years,all_tmax_avg_smoothed.map(function(d) { return d3.max(d); })),
-                      tmax_raw_good_years,tmax_raw_maxs,
-                      acceptable_years);
-    timeseries.plot_tele(acceptable_years,flattened_summer_extents,get_good_years(smoothed_years,acceptable_years,all_summer_dates),local_window,"summer");
-    timeseries.plot_T(local_window,"winter","blue",
-                      get_good_years(smoothed_years,acceptable_years,all_tmin_avg.map(function(d) { return d3.min(d); })),
-                      get_good_years(smoothed_years,acceptable_years,all_tmin_avg_smoothed.map(function(d) { return d3.min(d); })),
-                      tmin_raw_good_years,tmin_raw_mins,
-                      acceptable_years);
-    // timeseries.plot_tele(combined_years.length,flattened_summer_extents,flattened_winter_extents,local_window);
-    timeseries.plot_tele(acceptable_years,flattened_winter_extents,get_good_years(smoothed_years,acceptable_years,all_winter_dates),local_window,"winter");  
-    // timeseries.plot_tele(smoothed_years,flattened_winter_extents,all_winter_dates,local_window,"winter");
+    // timeseries.plot_T(local_window,"summer","red",
+    //                   get_good_years(smoothed_years,acceptable_years,all_tmax_avg.map(function(d) { return d3.max(d); })),
+    //                   get_good_years(smoothed_years,acceptable_years,all_tmax_avg_smoothed.map(function(d) { return d3.max(d); })),
+    //                   tmax_raw_good_years,tmax_raw_maxs,
+    //                   acceptable_years);
+    // timeseries.plot_tele(acceptable_years,flattened_summer_extents,get_good_years(smoothed_years,acceptable_years,all_summer_dates),local_window,"summer");
+    // timeseries.plot_T(local_window,"winter","blue",
+    //                   get_good_years(smoothed_years,acceptable_years,all_tmin_avg.map(function(d) { return d3.min(d); })),
+    //                   get_good_years(smoothed_years,acceptable_years,all_tmin_avg_smoothed.map(function(d) { return d3.min(d); })),
+    //                   tmin_raw_good_years,tmin_raw_mins,
+    //                   acceptable_years);
+    // timeseries.plot_tele(acceptable_years,flattened_winter_extents,get_good_years(smoothed_years,acceptable_years,all_winter_dates),local_window,"winter");  
 
-    var projected_summer_day = moment().dayOfYear(all_summer_dates[all_summer_dates.length-1]);
-    var projected_winter_day = moment().dayOfYear(all_winter_dates[all_winter_dates.length-1]-181);
-    if (projected_winter_day<moment()) {
-        projected_winter_day.add(1,"y");
-    }
-    if (projected_winter_day<moment()) {
-        projected_winter_day.add(1,"y");
-    }
-    if (projected_summer_day<moment()) {
-        projected_summer_day.add(1,"y");
-    }    
-    if (moment().dayOfYear() === projected_summer_day.dayOfYear()) {
-        alert("TODAY is the summer teletherm in "+city_name+", pop the champagne!!");
-    }
-    if ((moment().dayOfYear()+1) === projected_summer_day.dayOfYear()) {
-        alert("TOMORROW is the summer teletherm in "+city_name+", get the champagne ready!!");
-    }
-    if (moment().dayOfYear() === projected_winter_day.dayOfYear()) {
-        alert("TODAY is the winter teletherm in "+city_name+", pop the champagne!!");
-    }
-    if ((moment().dayOfYear()+1) === projected_winter_day.dayOfYear()) {
-        alert("TOMORROW is the winter teletherm in "+city_name+", get the champagne ready!!");
-    }
-    d3.select("#telebanner1").select(".telelocation").text(city_name);
-    d3.select("#telebanner2").select(".telelocation").text(city_name);
-    if (projected_winter_day > projected_summer_day) {
-        d3.select("#telebanner1").select(".teleseason").text("Summer Teletherm");
-        d3.select("#telebanner2").select(".teleseason").text("Winter Teletherm");        
-        d3.select("#telebanner1").select(".teledate").text(projected_summer_day.format("MMMM D, YYYY"));
-        d3.select("#telebanner2").select(".teledate").text(projected_winter_day.format("MMMM D, YYYY"));        
-    }
-    else {
-        d3.select("#telebanner2").select(".teleseason").text("Summer Teletherm");
-        d3.select("#telebanner1").select(".teleseason").text("Winter Teletherm");        
-        d3.select("#telebanner2").select(".teledate").text(projected_summer_day.format("MMMM D, YYYY"));
-        d3.select("#telebanner1").select(".teledate").text(projected_winter_day.format("MMMM D, YYYY"));                
-    }
+
+
 }
 
 

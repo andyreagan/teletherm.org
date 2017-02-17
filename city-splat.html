@@ -38,23 +38,25 @@
         </div>
         <div id="navbar" class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
-            <li class="dropdown">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Maps <span class="caret"></span></a>
-              <ul class="dropdown-menu">
-                <li><a href="map-dynamic.html">Dynamic map</a></li>
-                <li><a href="map-static.html">Small multiples</a></li>
-		<!-- <li role="separator" class="divider"></li> -->
-		<!-- <li><a href="/instruments/teletherms/" class="submenu">Others?</a></li>                 -->
-              </ul>
-            </li>
-            <li class="dropdown">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Stations <span class="caret"></span></a>
-              <ul class="dropdown-menu">
-                <li><a href="city-splat.html">Teletherm splat</a></li>
-                <li><a href="city-NYT.html">NYT Viz</a></li>		
-                <li><a href="city-timeseries.html">Over time</a></li>
-              </ul>
-            </li>
+            <!-- <li class="dropdown"> -->
+            <!--   <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Maps <span class="caret"></span></a> -->
+            <!--   <ul class="dropdown-menu"> -->
+            <!--     <li><a href="map-dynamic.html">Dynamic map</a></li> -->
+            <!--     <li><a href="map-static.html">Small multiples</a></li> -->
+	    <!--     <\!-- <li role="separator" class="divider"></li> -\-> -->
+	    <!--     <\!-- <li><a href="/instruments/teletherms/" class="submenu">Others?</a></li>                 -\-> -->
+            <!--   </ul> -->
+            <!-- </li> -->
+            <!-- <li class="dropdown"> -->
+            <!--   <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Stations <span class="caret"></span></a> -->
+            <!--   <ul class="dropdown-menu"> -->
+            <!--     <li><a href="city-splat.html">Teletherm splat</a></li> -->
+            <!--     <li><a href="city-NYT.html">NYT Viz</a></li> -->
+            <!--     <li><a href="city-timeseries.html">Over time</a></li> -->
+            <!--   </ul> -->
+            <!-- </li> -->
+            <li><a href="city-timeseries.html">Compare Stations</a></li>
+            <li><a href="map-dynamic.html">Regional Patterns (Maps)</a></li>            
             <li><a href="about.html">About</a></li>
           </ul>
         </div><!--/.nav-collapse -->
@@ -111,7 +113,10 @@
         </div>
       </div> <!-- row -->
       <div class="row">
-        <h3 id="stationname"></h3>
+        <h4>Teletherm watch!</h4>
+        <p id="telebanner1">The upcoming <span class="teleseason">Summer Teletherm</span> in <span class="telelocation">Burlington, VT</span> will be on <span class="teledate">July 12, 2017</span>.</p>
+        <p id="telebanner2">The upcoming <span class="teleseason">Winter Teletherm</span> in <span class="telelocation">Burlington, VT</span> will be on <span class="teledate">February 23, 2017</span>.</p>
+        <h4>Teletherm dynamics</h4>
         <div class="col-xs-12 col-md-4" id="figure1">
         </div> <!-- col -->
         <div class="col-xs-12 col-md-4" id="figure2">
@@ -121,12 +126,20 @@
         <!-- <h3 id="stationname"></h3> -->
         <!-- <div id="figure"></div> -->
         <!-- </div> <\!-- col -\-> -->
+        <h4>Historical Summer Teletherm Temperature</h4>
+        <div id="summer_T"></div>
+        <h4>Historical Summer Teletherm Date</h4>
+        <div id="summer_tele"></div>
+        <h4>Historical Winter Teletherm Temperature</h4>
+        <div id="winter_T"></div>
+        <h4>Historical Winter Teletherm Date</h4>
+        <div id="winter_tele"></div>
       </div> <!-- row -->
     <!-- </div> <\!-- col -\-> -->
     <br>
     <br>
     </div> <!-- container -->
-
+    <script src="js/moment.js"></script>
     <script src="js/jquery-1.11.0.min.js"></script>
     <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-scrollTo/2.1.0/jquery.scrollTo.min.js"></script>-->
     <script src="js/bootstrap.min.js"></script>
@@ -141,6 +154,7 @@
     <script src="js/hedotools.map.js"></script>
     <!-- base data loading -->
     <script src="js/stations.js"></script>
+    <script src="js/colorscales.js"></script>
     <!-- this is only script that changes on the page -->
     <script src="js/processData-splat.js"></script>
     <!-- these are the three visualizations -->

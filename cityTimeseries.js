@@ -71,8 +71,7 @@ var cityTimeseries = function() {
         max_T = d3.max([d3.max(extremes)+5,d3.max(all_avg_smoothed)+5])
         y_T =  d3.scale.linear()
 	    .domain([min_T,max_T])
-            // .domain(d3.extent(d3.extent(all_avg_smoothed).concat(d3.extent(all_avg))))
-	    .range([1*height-5,0*height+5]);
+	    .range([1*height,0*height]);
 
         // create the axes themselves
         axes = canvas.append("g")

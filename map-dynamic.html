@@ -37,24 +37,26 @@
         </div>
         <div id="navbar" class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
-            <li class="dropdown">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Maps <span class="caret"></span></a>
-              <ul class="dropdown-menu">
-                <li><a href="map-dynamic.html">Dynamic map</a></li>
-                <li><a href="map-static.html">Small multiples</a></li>
-		<!-- <li role="separator" class="divider"></li> -->
-		<!-- <li><a href="/instruments/teletherms/" class="submenu">Others?</a></li>                 -->
-              </ul>
-            </li>
-            <li class="dropdown">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Stations <span class="caret"></span></a>
-              <ul class="dropdown-menu">
-                <li><a href="city-splat.html">Teletherm splat</a></li>
-                <li><a href="city-NYT.html">NYT Viz</a></li>		
-                <li><a href="city-timeseries.html">Over time</a></li>
-              </ul>
-            </li>
-            <li><a href="about.html">About</a></li>
+            <!-- <li class="dropdown"> -->
+            <!--   <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Maps <span class="caret"></span></a> -->
+            <!--   <ul class="dropdown-menu"> -->
+            <!--     <li><a href="map-dynamic.html">Dynamic map</a></li> -->
+            <!--     <li><a href="map-static.html">Small multiples</a></li> -->
+	    <!--     <\!-- <li role="separator" class="divider"></li> -\-> -->
+	    <!--     <\!-- <li><a href="/instruments/teletherms/" class="submenu">Others?</a></li>                 -\-> -->
+            <!--   </ul> -->
+            <!-- </li> -->
+            <!-- <li class="dropdown"> -->
+            <!--   <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Stations <span class="caret"></span></a> -->
+            <!--   <ul class="dropdown-menu"> -->
+            <!--     <li><a href="city-splat.html">Teletherm splat</a></li> -->
+            <!--     <li><a href="city-NYT.html">NYT Viz</a></li> -->
+            <!--     <li><a href="city-timeseries.html">Over time</a></li> -->
+            <!--   </ul> -->
+            <!-- </li> -->
+            <li><a href="city-timeseries.html">Compare Stations</a></li>
+            <li><a href="map-dynamic.html">Regional Patterns (Maps)</a></li>            
+            <li><a href="about.html">About</a></li>                        
           </ul>
         </div><!--/.nav-collapse -->
       </div>
@@ -119,7 +121,14 @@
 
 	    <button class="btn btn-default" type="submit" id="playButton"><i class="fa fa-play"></i></button>
 
-          </div> <!-- row -->
+          </div> <!-- yearselection -->
+          <div class="yearselection">
+            <p>Fisheye lens</p>
+            <div class="wrapper">
+              <input type="checkbox" name="toggle" id="toggle">
+              <label for="toggle"></label>
+            </div>
+          </div> <!-- yearselection -->
         </div>
       </div> <!-- row -->
       <div class="row">
@@ -162,7 +171,8 @@
     <script src="js/jquery-1.11.0.min.js"></script>
     <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-scrollTo/2.1.0/jquery.scrollTo.min.js"></script>-->
     <script src="js/bootstrap.min.js"></script>
-    <script src="js/d3.js"></script>
+    <script src="js/d3.v4.js"></script>
+    <script src="js/d3-selection-multi.js"></script>    
     <script src="js/fisheye.js"></script>
     <script src="js/science.v1.js"></script>
     <script src="js/queue.min.js"></script>
@@ -171,7 +181,8 @@
     <script src="js/hedotools.init.js"></script>
     <script src="js/hedotools.map.js"></script>
     <script src="js/stations.js"></script>
-    <script src="js/cityTimePlot.js"></script>
+    <script src="js/citySplat.v4.js"></script>
+    <script src="js/processData-map.js"></script>    
     <script src="js/teletherm.js"></script>
   </body>
 </html>

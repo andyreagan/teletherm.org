@@ -38,24 +38,26 @@
         </div>
         <div id="navbar" class="navbar-collapse collapse">
           <ul class="nav navbar-nav">
-            <li class="dropdown">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Maps <span class="caret"></span></a>
-              <ul class="dropdown-menu">
-                <li><a href="map-dynamic.html">Dynamic map</a></li>
-                <li><a href="map-static.html">Small multiples</a></li>
-		<!-- <li role="separator" class="divider"></li> -->
-		<!-- <li><a href="/instruments/teletherms/" class="submenu">Others?</a></li>                 -->
-              </ul>
-            </li>
-            <li class="dropdown">
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Stations <span class="caret"></span></a>
-              <ul class="dropdown-menu">
-                <li><a href="city-splat.html">Teletherm splat</a></li>
-                <li><a href="city-NYT.html">NYT Viz</a></li>		
-                <li><a href="city-timeseries.html">Over time</a></li>
-              </ul>
-            </li>
-            <li><a href="about.html">About</a></li>
+            <!-- <li class="dropdown"> -->
+            <!--   <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Maps <span class="caret"></span></a> -->
+            <!--   <ul class="dropdown-menu"> -->
+            <!--     <li><a href="map-dynamic.html">Dynamic map</a></li> -->
+            <!--     <li><a href="map-static.html">Small multiples</a></li> -->
+	    <!--     <\!-- <li role="separator" class="divider"></li> -\-> -->
+	    <!--     <\!-- <li><a href="/instruments/teletherms/" class="submenu">Others?</a></li>                 -\-> -->
+            <!--   </ul> -->
+            <!-- </li> -->
+            <!-- <li class="dropdown"> -->
+            <!--   <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Stations <span class="caret"></span></a> -->
+            <!--   <ul class="dropdown-menu"> -->
+            <!--     <li><a href="city-splat.html">Teletherm splat</a></li> -->
+            <!--     <li><a href="city-NYT.html">NYT Viz</a></li> -->
+            <!--     <li><a href="city-timeseries.html">Over time</a></li> -->
+            <!--   </ul> -->
+            <!-- </li> -->
+            <li><a href="city-timeseries.html">Compare Stations</a></li>
+            <li><a href="map-dynamic.html">Regional Patterns (Maps)</a></li>            
+            <li><a href="about.html">About</a></li>            
           </ul>
         </div><!--/.nav-collapse -->
       </div>
@@ -106,8 +108,20 @@
           </div>
         </div>        
         <div class="col-xs-12 col-xs-offset-0">
-          <h3 id="stationname"></h3>
-          <div id="figure"></div>
+          <div id="citybox">
+            Cities selected:
+            <div id="cityboxcities">
+              <!-- <div class="shown">Burlington VT <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button></div>         -->
+            </div>
+            <div class="addcity"><i class="fa fa-plus-circle" aria-hidden="true"></i> Add a city: simply select a new city above</div></div>
+          <h4>Summer Teletherm Temperature</h4>
+          <div id="summer_T"></div>
+          <h4>Summer Teletherm Date</h4>
+          <div id="summer_tele"></div>
+          <h4>Winter Teletherm Temperature</h4>
+          <div id="winter_T"></div>
+          <h4>Winter Teletherm Date</h4>
+          <div id="winter_tele"></div>
         </div> <!-- col -->          
       </div> <!-- row -->
       <br>
@@ -128,6 +142,7 @@
     <script src="js/hedotools.map.js"></script>
     <!-- base data loading -->
     <script src="js/stations.js"></script>
+    <script src="js/colorscales.js"></script>
     <!-- this is only script that changes on the page -->
     <script src="js/processData-timeseries.js"></script>
     <!-- these are the three visualizations -->
@@ -138,5 +153,15 @@
     <script src="js/teletherm-cityDynamics.js"></script>
   </body>
 </html>
+
+
+
+
+
+
+
+
+
+
 
 

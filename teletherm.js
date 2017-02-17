@@ -1,3 +1,263 @@
+// on page load, queue's up the geo json and draps the map on return (using dataloaded())
+// at the end of this function, queue's up the map data and calls updatedMap() to put points on the map.
+// updateMap() is the end of the road for the initial load
+//
+// the year window buttons, and the variable dropdown will trigger updateMap()
+// the year drop down ... (#yeardroplist) calls changeYear()
+// the play button ...  calls changeYear()
+
+// globally namespace these things
+var geoJson;
+var stateFeatures;
+var station_dynamics = false;
+
+var arrowradius = 16;
+var rmin = 4;
+var rmax = 6;
+
+var month_names = ["January", "February", "March", "April", "May", "June",
+                  "July", "August", "September", "October", "November", "December", ];
+var month_lengths = [31,28,31,30,31,30,31,31,30,31,30,31,];
+// this will be the first day of every month
+var month_lengths_cum = [1,31,28,31,30,31,30,31,31,30,31,30,];
+for (var i=1; i<month_lengths_cum.length; i++) {
+    month_lengths_cum[i] += month_lengths_cum[i-1];
+}
+// first day of every month for 18 months
+var month_lengths_cum_18_forward = [1,31,28,31,30,31,30,31,31,30,31,30,31,31,28,31,30,31,];
+for (var i=1; i<month_lengths_cum_18_forward.length; i++) {
+    month_lengths_cum_18_forward[i] += month_lengths_cum_18_forward[i-1];
+}
+// note, the above ends at 517, which is short of the xrange of 365+181 = 546
+// first day of every month for 18 months, starting backward 1
+var month_lengths_cum_18_backward = [1-181,31,28,31,30,31,30,31,31,30,31,30,31,31,28,31,30,31,];
+for (var i=1; i<month_lengths_cum_18_backward.length; i++) {
+    month_lengths_cum_18_backward[i] += month_lengths_cum_18_backward[i-1];
+}
+
+// the main variables for the file load
+// careful not to overload "window"
+var windowEncoder = d3.urllib.encoder().varname("window"); //.varval(...);
+var windowDecoder = d3.urllib.decoder().varname("window").varresult("25");
+var windows = ["10","25","50"];
+var windowIndex = 0;
+var currentWindow;
+for (var i=0; i<windows.length; i++) {
+    if (windowDecoder().cached === windows[i]) {
+	windowIndex = i;
+    }
+}
+currentWindow = windowDecoder().cached;
+windowEncoder.varval(currentWindow);
+
+// the main variables for the file load
+// careful not to overload "window"
+var cityEncoder = d3.urllib.encoder().varname("city"); //.varval(...);
+var cityDecoder = d3.urllib.decoder().varname("city").varresult("No city");
+var currentCityIndex = -1;
+if (cityDecoder.cached !== "No city") {
+    for (var i=0; i<locations.length; i++) {
+        if (cityDecoder().cached === locations[i][3]) {
+	    currentCityIndex = i;
+        }
+    }
+}
+
+var city_clicked_initial_load = function(d) {
+    
+    cityEncoder.varval(d[3]);
+    
+    $('#myModal').modal('show');
+    
+    var city_name_split = d[3].split(",");
+    var proper_city_name = city_name_split[0].split(" ");
+    for (var i=0; i<proper_city_name.length; i++) {
+        proper_city_name[i] = proper_city_name[i][0].toUpperCase() + proper_city_name[i].slice(1).toLowerCase();
+    }
+    var city_name = [proper_city_name.join(" "),city_name_split[1]].join(",")+" from "+full_year_range[yearIndex]+"&ndash;"+(full_year_range[yearIndex]+parseInt(windowDecoder().cached))+":";
+
+    // document.getElementById("stationname").innerHTML = city_name;
+    var city_link = city_name+" <a href=\"city-timeseries.html?cityid="+d[4]+"\">(click for city page)</a>"
+    document.getElementById("stationname").innerHTML = city_link;
+    
+    console.log(d);
+    
+    // queue()
+    //     .defer(d3.text,"/data/teledata/stations/tmax_boxplot_0"+d[0]+".txt")
+    //     .defer(d3.text,"/data/teledata/stations/tmax_0"+d[0]+".txt")
+    //     .defer(d3.text,"/data/teledata/stations/tmax_smoothed_0"+d[0]+".txt")
+    //     .defer(d3.text,"/data/teledata/stations/tmax_coverage_0"+d[0]+".txt")
+    //     .defer(d3.text,"/data/teledata/stations/tmin_boxplot_0"+d[0]+".txt")
+    //     .defer(d3.text,"/data/teledata/stations/tmin_0"+d[0]+".txt")
+    //     .defer(d3.text,"/data/teledata/stations/tmin_smoothed_0"+d[0]+".txt")
+    //     .defer(d3.text,"/data/teledata/stations/tmin_coverage_0"+d[0]+".txt")
+    //     .awaitAll(cityTimePlot);
+
+    $('#myModal').on('shown.bs.modal', function (e) {
+        queue()
+            .defer(d3.text,"/data/teledata/stations/telethermdata-"+d[4]+"-tmax_values_combined.txt")
+            .defer(d3.text,"/data/teledata/stations/telethermdata-"+d[4]+"-tmax_years_combined.txt")
+            .defer(d3.text,"/data/teledata/stations/telethermdata-"+d[4]+"-wrapped_tmin_values_combined.txt")
+            .defer(d3.text,"/data/teledata/stations/telethermdata-"+d[4]+"-wrapped_tmin_years_combined.txt")
+            .awaitAll(cityTimePlot);
+    })
+}
+
+
+// need to select the right one
+// do something like this:
+// http://stackoverflow.com/questions/19541484/bootstrap-set-initial-radio-button-checked-in-html
+d3.select("#yearbuttons").selectAll("input").attr("checked",function(d,i) { if (i===windowIndex) { return "checked"; } else { return null; } });
+
+// now you can close a city
+$('#myModal').on('hidden.bs.modal', function (e) {
+    $("#figure").empty();
+    $("#stationname").html("");
+    cityEncoder.destroy();
+});
+
+var variableLong = ["Summer Teletherm Day & Extent","Winter Teletherm Day & Extent","Summer Teletherm Temperature","Winter Teletherm Temperature"];
+var variableShort = ["summer_day","winter_day","maxT","minT",]
+var variableHover = variableLong;
+// ranges are pre-computed from the data like this:
+// allMins = Array(data.length-2);
+// allMaxes = Array(data.length-2);
+// for (var i=0; i<data.length-2; i++) { min = 150; max = -100; for (var j=0; j<data[i+1].length; j++) { if (data[i+1][j] > -9998) { if (data[i+1][j] > max) { max = data[i+1][j]; } if (data[i+1][j] < min) { min = data[i+1][j]; } } } allMins[i] = min; allMaxes[i] = max; }
+// console.log("["+d3.min(allMins)+","+d3.max(allMaxes)+"]");
+// these are the 1 year ranges
+// var variableRanges = [[60.802142,125.425581],[-41.824669,64.654411],[18,339],[85-184,301-184],[1,57],[2,60],];
+var variableRanges = [[144,295],[145-184,257-184],[61.598812,110.425581],[-15.488525,65.002232],]
+// var variableRanges = [[144,295],[145-184,257-184],[-10,105],[-10,105],]
+var maxYear = 2012;
+var variableIndex = 0;
+var variableEncoder = d3.urllib.encoder().varname("var");
+var variableDecoder = d3.urllib.decoder().varname("var").varresult("summer_day");
+// now this is going to be the short one
+var variable;
+variable = variableDecoder().cached;
+variableEncoder.varval(variable);
+// get the index
+for (var i=0; i<variableShort.length; i++) {
+    if (variable === variableShort[i]) {
+	variableIndex = i;
+    }
+}
+$("#variabledropvis").html(variableLong[variableIndex]+" <span class=\"caret\"></span>");
+
+var year;
+var yearIndex;
+var allyears;
+var full_year_range = [1900,1901,1902,1903,1904,1905,1906,1907,1908,1909,1910,1911,1912,1913,1914,1915,1916,1917,1918,1919,1920,1921,1922,1923,1924,1925,1926,1927,1928,1929,1930,1931,1932,1933,1934,1935,1936,1937,1938,1939,1940,1941,1942,1943,1944,1945,1946,1947,1948,1949,1950,1951,1952,1953,1954,1955,1956,1957,1958,1959,1960,1961,1962,1963,1964,1965,1966,1967,1968,1969,1970,1971,1972,1973,1974,1975,1976,1977,1978,1979,1980,1981,1982,1983,1984,1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013];
+var yearEncoder = d3.urllib.encoder().varname("year");
+var yearDecoder = d3.urllib.decoder().varname("year").varresult("1960");
+yearEncoder.varval(yearDecoder().cached);
+// yearIndex = parseFloat(yearDecoder().cached);
+// can't really get the index until we have the years loaded
+for (var i=0; i<full_year_range.length; i++) {
+    if ((full_year_range[i]+"") === yearDecoder().cached) {
+        yearIndex = i;
+        break;
+    }
+}
+// yearEncoder.varval(yearIndex);
+
+$("#yearbuttons input").click(function() {
+    console.log("calling updatewindow()");
+    updatewindow(1000);
+    
+    // console.log($(this).val());
+    currentWindow = $(this).val();
+    windowEncoder.varval(currentWindow);
+
+    var my_year = windowDecoder().cached;
+    if (my_year === "1") {
+        var padded_year = "01";
+    }
+    else {
+        var padded_year = my_year;
+    }
+
+    // need to get the extent in there too
+    if (variableDecoder().cached === "summer_day")
+    {
+        queue()
+	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
+	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached.replace("day","extent")+".txt")        
+	    .awaitAll(updateMap);
+    }
+    else if (variableDecoder().cached === "winter_day")
+    {
+        queue()
+	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
+	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached.replace("day","extent")+".txt")                
+	    .awaitAll(updateMap);
+    }
+    else {
+        queue()
+	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
+	    .awaitAll(updateMap);
+    }
+    
+});
+
+$("#variabledrop a").click(function() {
+    console.log($(this).text());
+    variable = $(this).text();
+    for (var i=0; i<variableLong.length; i++) {
+	if (variable === variableLong[i]) {
+	    variableIndex = i;
+	}
+    }
+    variableEncoder.varval(variableShort[variableIndex]);
+    $("#variabledropvis").html(variable+" <span class=\"caret\"></span>");
+    var my_year = windowDecoder().cached;
+    if (my_year === "1") {
+        var padded_year = "01";
+    }
+    else {
+        var padded_year = my_year;
+    }
+    
+    // need to get the extent in there too
+    if (variableDecoder().cached === "summer_day")
+    {
+        queue()
+	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
+	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached.replace("day","extent")+".txt")        
+	    .awaitAll(updateMap);
+    }
+    else if (variableDecoder().cached === "winter_day")
+    {
+        queue()
+	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
+	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached.replace("day","extent")+".txt")                
+	    .awaitAll(updateMap);
+    }
+    else {
+        queue()
+	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
+	    .awaitAll(updateMap);
+    }
+    
+});
+
+        // $("#yeardrop a").click(function() {
+//     console.log($(this).text());
+//     year = $(this).text();
+//     $("#yeardropvis").html(year+" <span class=\"caret\"></span>");
+// });
+
+var cities;
+var citygroups;
+var cityarrows;
+var data;
+var extradata = [];
+
+// special color scale for maxT
+var maxTcolor = function(i) { 
+    return d3.rgb(Math.floor(tempScale(data[i+1][0])*255),0,0).toString();
+}
+
 // diverging red blue color map from colorbrewer
 var divredblue10 = ["#67001f","#b2182b","#d6604d","#f4a582","#fddbc7","#f7f7f7","#d1e5f0","#92c5de","#4393c3","#2166ac"];
 var divredblue11 = ["#053061","#2166ac","#4393c3","#92c5de","#d1e5f0","#f7f7f7","#fddbc7","#f4a582","#d6604d","#b2182b","#67001f",];
@@ -117,286 +377,9 @@ var plasma = ["#0d0887","#100788","#130789","#16078a","#19068c","#1b068d","#1d06
 
 var viridis = ["#440154","#440256","#450457","#450559","#46075a","#46085c","#460a5d","#460b5e","#470d60","#470e61","#471063","#471164","#471365","#481467","#481668","#481769","#48186a","#481a6c","#481b6d","#481c6e","#481d6f","#481f70","#482071","#482173","#482374","#482475","#482576","#482677","#482878","#482979","#472a7a","#472c7a","#472d7b","#472e7c","#472f7d","#46307e","#46327e","#46337f","#463480","#453581","#453781","#453882","#443983","#443a83","#443b84","#433d84","#433e85","#423f85","#424086","#424186","#414287","#414487","#404588","#404688","#3f4788","#3f4889","#3e4989","#3e4a89","#3e4c8a","#3d4d8a","#3d4e8a","#3c4f8a","#3c508b","#3b518b","#3b528b","#3a538b","#3a548c","#39558c","#39568c","#38588c","#38598c","#375a8c","#375b8d","#365c8d","#365d8d","#355e8d","#355f8d","#34608d","#34618d","#33628d","#33638d","#32648e","#32658e","#31668e","#31678e","#31688e","#30698e","#306a8e","#2f6b8e","#2f6c8e","#2e6d8e","#2e6e8e","#2e6f8e","#2d708e","#2d718e","#2c718e","#2c728e","#2c738e","#2b748e","#2b758e","#2a768e","#2a778e","#2a788e","#29798e","#297a8e","#297b8e","#287c8e","#287d8e","#277e8e","#277f8e","#27808e","#26818e","#26828e","#26828e","#25838e","#25848e","#25858e","#24868e","#24878e","#23888e","#23898e","#238a8d","#228b8d","#228c8d","#228d8d","#218e8d","#218f8d","#21908d","#21918c","#20928c","#20928c","#20938c","#1f948c","#1f958b","#1f968b","#1f978b","#1f988b","#1f998a","#1f9a8a","#1e9b8a","#1e9c89","#1e9d89","#1f9e89","#1f9f88","#1fa088","#1fa188","#1fa187","#1fa287","#20a386","#20a486","#21a585","#21a685","#22a785","#22a884","#23a983","#24aa83","#25ab82","#25ac82","#26ad81","#27ad81","#28ae80","#29af7f","#2ab07f","#2cb17e","#2db27d","#2eb37c","#2fb47c","#31b57b","#32b67a","#34b679","#35b779","#37b878","#38b977","#3aba76","#3bbb75","#3dbc74","#3fbc73","#40bd72","#42be71","#44bf70","#46c06f","#48c16e","#4ac16d","#4cc26c","#4ec36b","#50c46a","#52c569","#54c568","#56c667","#58c765","#5ac864","#5cc863","#5ec962","#60ca60","#63cb5f","#65cb5e","#67cc5c","#69cd5b","#6ccd5a","#6ece58","#70cf57","#73d056","#75d054","#77d153","#7ad151","#7cd250","#7fd34e","#81d34d","#84d44b","#86d549","#89d548","#8bd646","#8ed645","#90d743","#93d741","#95d840","#98d83e","#9bd93c","#9dd93b","#a0da39","#a2da37","#a5db36","#a8db34","#aadc32","#addc30","#b0dd2f","#b2dd2d","#b5de2b","#b8de29","#bade28","#bddf26","#c0df25","#c2df23","#c5e021","#c8e020","#cae11f","#cde11d","#d0e11c","#d2e21b","#d5e21a","#d8e219","#dae319","#dde318","#dfe318","#e2e418","#e5e419","#e7e419","#eae51a","#ece51b","#efe51c","#f1e51d","#f4e61e","#f6e620","#f8e621","#fbe723","#fde725"];
 
-// var chosen_color_scale = dark_sky;
+var chosen_color_scale = dark_sky;
 
-var blues = ['rgb(247,251,255)','rgb(222,235,247)','rgb(198,219,239)','rgb(158,202,225)','rgb(107,174,214)','rgb(66,146,198)','rgb(33,113,181)','rgb(8,81,156)','rgb(8,48,107)'];
-var oranges = ['rgb(255,245,235)','rgb(254,230,206)','rgb(253,208,162)','rgb(253,174,107)','rgb(253,141,60)','rgb(241,105,19)','rgb(217,72,1)','rgb(166,54,3)','rgb(127,39,4)'];
-var greys = ['rgb(255,255,255)','rgb(240,240,240)','rgb(217,217,217)','rgb(189,189,189)','rgb(150,150,150)','rgb(115,115,115)','rgb(82,82,82)','rgb(37,37,37)','rgb(0,0,0)'];
-
-////////////////////////////////////////////////////////////////////////////////
-// that's is for the colormaps
-////////////////////////////////////////////////////////////////////////////////
-
-// on page load, queue's up the geo json and draps the map on return (using dataloaded())
-// at the end of this function, queue's up the map data and calls updatedMap() to put points on the map.
-// updateMap() is the end of the road for the initial load
-//
-// the year window buttons, and the variable dropdown will trigger updateMap()
-// the year drop down ... (#yeardroplist) calls changeYear()
-// the play button ...  calls changeYear()
-
-// globally namespace these things
-var geoJson;
-var stateFeatures;
-var station_dynamics = false;
-
-var arrowradius = 16;
-var rmin = 1.5;
-var rmax = 4;
-
-var month_names = ["January", "February", "March", "April", "May", "June",
-                  "July", "August", "September", "October", "November", "December", ];
-var month_lengths = [31,28,31,30,31,30,31,31,30,31,30,31,];
-// this will be the first day of every month
-var month_lengths_cum = [1,31,28,31,30,31,30,31,31,30,31,30,];
-for (var i=1; i<month_lengths_cum.length; i++) {
-    month_lengths_cum[i] += month_lengths_cum[i-1];
-}
-// first day of every month for 18 months
-var month_lengths_cum_18_forward = [1,31,28,31,30,31,30,31,31,30,31,30,31,31,28,31,30,31,];
-for (var i=1; i<month_lengths_cum_18_forward.length; i++) {
-    month_lengths_cum_18_forward[i] += month_lengths_cum_18_forward[i-1];
-}
-// note, the above ends at 517, which is short of the xrange of 365+181 = 546
-// first day of every month for 18 months, starting backward 1
-var month_lengths_cum_18_backward = [1-181,31,28,31,30,31,30,31,31,30,31,30,31,31,28,31,30,31,];
-for (var i=1; i<month_lengths_cum_18_backward.length; i++) {
-    month_lengths_cum_18_backward[i] += month_lengths_cum_18_backward[i-1];
-}
-
-// the main variables for the file load
-// careful not to overload "window"
-var windowEncoder = d3.urllib.encoder().varname("window"); //.varval(...);
-var windowDecoder = d3.urllib.decoder().varname("window").varresult("25");
-var windows = ["10","25","50"];
-var windowIndex = 0;
-var currentWindow;
-for (var i=0; i<windows.length; i++) {
-    if (windowDecoder().cached === windows[i]) {
-	windowIndex = i;
-    }
-}
-currentWindow = windowDecoder().cached;
-windowEncoder.varval(currentWindow);
-
-// the main variables for the file load
-// careful not to overload "window"
-var cityEncoder = d3.urllib.encoder().varname("city"); //.varval(...);
-var cityDecoder = d3.urllib.decoder().varname("city").varresult("No city");
-var currentCityIndex = -1;
-if (cityDecoder.cached !== "No city") {
-    for (var i=0; i<locations.length; i++) {
-        if (cityDecoder().cached === locations[i][3]) {
-	    currentCityIndex = i;
-        }
-    }
-}
-
-var city_clicked_initial_load = function(d,i) {
-
-    var d = locations[i];
-    cityEncoder.varval(d[3]);
-    
-    $('#myModal').modal('show');
-    
-    var city_name_split = d[3].split(",");
-    var proper_city_name = city_name_split[0].split(" ");
-    for (var i=0; i<proper_city_name.length; i++) {
-        proper_city_name[i] = proper_city_name[i][0].toUpperCase() + proper_city_name[i].slice(1).toLowerCase();
-    }
-    var city_name = [proper_city_name.join(" "),city_name_split[1]].join(",")+" from "+full_year_range[yearIndex]+"&ndash;"+(full_year_range[yearIndex]+parseInt(windowDecoder().cached))+":";
-
-    // document.getElementById("stationname").innerHTML = city_name;
-    var city_link = city_name+" <a href=\"city-splat.html?cityid="+d[4]+"\">(click for city page)</a>"
-    document.getElementById("stationname").innerHTML = city_link;
-    
-    console.log(d);
-    
-    // queue()
-    //     .defer(d3.text,"/data/teledata/stations/tmax_boxplot_0"+d[0]+".txt")
-    //     .defer(d3.text,"/data/teledata/stations/tmax_0"+d[0]+".txt")
-    //     .defer(d3.text,"/data/teledata/stations/tmax_smoothed_0"+d[0]+".txt")
-    //     .defer(d3.text,"/data/teledata/stations/tmax_coverage_0"+d[0]+".txt")
-    //     .defer(d3.text,"/data/teledata/stations/tmin_boxplot_0"+d[0]+".txt")
-    //     .defer(d3.text,"/data/teledata/stations/tmin_0"+d[0]+".txt")
-    //     .defer(d3.text,"/data/teledata/stations/tmin_smoothed_0"+d[0]+".txt")
-    //     .defer(d3.text,"/data/teledata/stations/tmin_coverage_0"+d[0]+".txt")
-    //     .awaitAll(cityTimePlot);
-
-    $('#myModal').on('shown.bs.modal', function (e) {
-        queue()
-            .defer(d3.text,"/data/teledata/stations/telethermdata-"+d[4]+"-tmax_values_combined.txt")
-            .defer(d3.text,"/data/teledata/stations/telethermdata-"+d[4]+"-tmax_years_combined.txt")
-            .defer(d3.text,"/data/teledata/stations/telethermdata-"+d[4]+"-wrapped_tmin_values_combined.txt")
-            .defer(d3.text,"/data/teledata/stations/telethermdata-"+d[4]+"-wrapped_tmin_years_combined.txt")
-            .awaitAll(processData);
-    })
-}
-
-
-// need to select the right one
-// do something like this:
-// http://stackoverflow.com/questions/19541484/bootstrap-set-initial-radio-button-checked-in-html
-d3.select("#yearbuttons").selectAll("input").attr("checked",function(d,i) { if (i===windowIndex) { return "checked"; } else { return null; } });
-
-// now you can close a city
-$('#myModal').on('hidden.bs.modal', function (e) {
-    $("#figure").empty();
-    $("#stationname").html("");
-    cityEncoder.destroy();
-});
-
-var variableLong = ["Summer Teletherm Day & Extent","Winter Teletherm Day & Extent","Summer Teletherm Temperature","Winter Teletherm Temperature"];
-var variableShort = ["summer_day","winter_day","maxT","minT",]
-var variableHover = variableLong;
-// ranges are pre-computed from the data like this:
-// allMins = Array(data.length-2);
-// allMaxes = Array(data.length-2);
-// for (var i=0; i<data.length-2; i++) { min = 150; max = -100; for (var j=0; j<data[i+1].length; j++) { if (data[i+1][j] > -9998) { if (data[i+1][j] > max) { max = data[i+1][j]; } if (data[i+1][j] < min) { min = data[i+1][j]; } } } allMins[i] = min; allMaxes[i] = max; }
-// console.log("["+d3.min(allMins)+","+d3.max(allMaxes)+"]");
-// these are the 1 year ranges
-// var variableRanges = [[60.802142,125.425581],[-41.824669,64.654411],[18,339],[85-184,301-184],[1,57],[2,60],];
-var variableRanges = [[144,295],[145-184,257-184],[61.598812,110.425581],[-15.488525,65.002232],]
-// var variableRanges = [[144,295],[145-184,257-184],[-10,105],[-10,105],]
-var maxYear = 2012;
-var variableIndex = 0;
-var variableEncoder = d3.urllib.encoder().varname("var");
-var variableDecoder = d3.urllib.decoder().varname("var").varresult("summer_day");
-// now this is going to be the short one
-var variable;
-variable = variableDecoder().cached;
-variableEncoder.varval(variable);
-// get the index
-for (var i=0; i<variableShort.length; i++) {
-    if (variable === variableShort[i]) {
-	variableIndex = i;
-    }
-}
-var variableColorMaps = [oranges,blues,dark_sky,dark_sky];
-//var variableColorMaps = [greys,greys,dark_sky,dark_sky];
-var chosen_color_scale = variableColorMaps[variableIndex];
-
-$("#variabledropvis").html(variableLong[variableIndex]+" <span class=\"caret\"></span>");
-
-var year;
-var yearIndex;
-var allyears;
-var full_year_range = [1900,1901,1902,1903,1904,1905,1906,1907,1908,1909,1910,1911,1912,1913,1914,1915,1916,1917,1918,1919,1920,1921,1922,1923,1924,1925,1926,1927,1928,1929,1930,1931,1932,1933,1934,1935,1936,1937,1938,1939,1940,1941,1942,1943,1944,1945,1946,1947,1948,1949,1950,1951,1952,1953,1954,1955,1956,1957,1958,1959,1960,1961,1962,1963,1964,1965,1966,1967,1968,1969,1970,1971,1972,1973,1974,1975,1976,1977,1978,1979,1980,1981,1982,1983,1984,1985,1986,1987,1988,1989,1990,1991,1992,1993,1994,1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013];
-var yearEncoder = d3.urllib.encoder().varname("year");
-var yearDecoder = d3.urllib.decoder().varname("year").varresult("1960");
-yearEncoder.varval(yearDecoder().cached);
-// yearIndex = parseFloat(yearDecoder().cached);
-// can't really get the index until we have the years loaded
-for (var i=0; i<full_year_range.length; i++) {
-    if ((full_year_range[i]+"") === yearDecoder().cached) {
-        yearIndex = i;
-        break;
-    }
-}
-// yearEncoder.varval(yearIndex);
-
-$("#yearbuttons input").click(function() {
-    console.log("calling updatewindow()");
-    updatewindow(1000);
-    
-    // console.log($(this).val());
-    currentWindow = $(this).val();
-    windowEncoder.varval(currentWindow);
-
-    var my_year = windowDecoder().cached;
-    if (my_year === "1") {
-        var padded_year = "01";
-    }
-    else {
-        var padded_year = my_year;
-    }
-
-    // need to get the extent in there too
-    if (variableDecoder().cached === "summer_day")
-    {
-        queue()
-	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
-	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached.replace("day","extent")+".txt")        
-	    .awaitAll(updateMap);
-    }
-    else if (variableDecoder().cached === "winter_day")
-    {
-        queue()
-	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
-	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached.replace("day","extent")+".txt")                
-	    .awaitAll(updateMap);
-    }
-    else {
-        queue()
-	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
-	    .awaitAll(updateMap);
-    }
-    
-});
-
-$("#variabledrop a").click(function() {
-    console.log($(this).text());
-    variable = $(this).text();
-    for (var i=0; i<variableLong.length; i++) {
-	if (variable === variableLong[i]) {
-	    variableIndex = i;
-	}
-    }
-    chosen_color_scale = variableColorMaps[variableIndex];
-    summerTScale.range(chosen_color_scale);
-    variableEncoder.varval(variableShort[variableIndex]);
-    $("#variabledropvis").html(variable+" <span class=\"caret\"></span>");
-    var my_year = windowDecoder().cached;
-    if (my_year === "1") {
-        var padded_year = "01";
-    }
-    else {
-        var padded_year = my_year;
-    }
-    
-    // need to get the extent in there too
-    if (variableDecoder().cached === "summer_day")
-    {
-        queue()
-	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
-	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached.replace("day","extent")+".txt")        
-	    .awaitAll(updateMap);
-    }
-    else if (variableDecoder().cached === "winter_day")
-    {
-        queue()
-	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
-	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached.replace("day","extent")+".txt")                
-	    .awaitAll(updateMap);
-    }
-    else {
-        queue()
-	    .defer(d3.text,"/data/teledata/dynamics-1900/telethermdata-"+padded_year+"years-"+variableDecoder().cached+".txt")
-	    .awaitAll(updateMap);
-    }
-    
-});
-
-        // $("#yeardrop a").click(function() {
-//     console.log($(this).text());
-//     year = $(this).text();
-//     $("#yeardropvis").html(year+" <span class=\"caret\"></span>");
-// });
-
-var cities;
-var citygroups;
-var cityarrows;
-var data;
-var extradata = [];
-
-// special color scale for maxT
-var maxTcolor = function(i) { 
-    return d3.rgb(Math.floor(tempScale(data[i+1][0])*255),0,0).toString();
-}
-
-
-
-var summerTScale = d3.scaleQuantize()
+var summerTScale = d3.scale.quantize()
  // celsius domain
  // .domain([63,117])
  // for fake data
@@ -538,24 +521,16 @@ var changeYear = function() {
     console.log("calling updatewindow() to update the top timeline");
     updatewindow(update_time);
 
-    // cities.attr("fill",function(d,i) {
-    //     if (data[i+1][yearIndex] > -9998) {
-    //         return summerTScale(data[i+1][yearIndex]+angle_offset);
-    //     }
-    //     else {
-    //         return summerTScale(75);
-    //     }})
-    //     .attr("value",function(d,i) {
-    //         return data[i+1][yearIndex];
-    //     });
-
-    d3.selectAll(".station-cell").style("fill",function(d,i) {
-            return (data[i+1][yearIndex] > -9998) ? summerTScale(data[i+1][yearIndex]+angle_offset) : "none";
-        })
-        // return "none"; // summerTScale(75);
+    cities.attr("fill",function(d,i) {
+        if (data[i+1][yearIndex] > -9998) {
+            return summerTScale(data[i+1][yearIndex]+angle_offset);
+        }
+        else {
+            return summerTScale(75);
+        }})
         .attr("value",function(d,i) {
             return data[i+1][yearIndex];
-        });    
+        });
 
     if (extradata.length > 0) {
         cities.attr("r",function(d,i) {
@@ -594,11 +569,11 @@ var changeYear = function() {
     });
     
     if (variableIndex < 2) {
-	cityarrows.attrs({
+	cityarrows.attr({
 	    "x2": function(d,i) { return arrowradius*Math.cos((data[i+1][yearIndex]+angle_offset)/365*2*Math.PI-Math.PI/2); },
 	    "y2": function(d,i) { return arrowradius*Math.sin((data[i+1][yearIndex]+angle_offset)/365*2*Math.PI-Math.PI/2); },
 	    "stroke-width": "1.5",
-	    // "stroke": function(d,i) { return summerTScale(data[i+1][yearIndex]+angle_offset); },
+	    "stroke": function(d,i) { return summerTScale(data[i+1][yearIndex]+angle_offset); },
 	});
     }
     else {
@@ -613,7 +588,6 @@ var changeYear = function() {
 var drawScale = function(extent,type) {
     console.log("adding scale to the map of type:");
     console.log(type);
-    console.log(chosen_color_scale);
     // console.log(extent);
     var legendwidth = 200;
     var legendheight = 20;
@@ -627,14 +601,14 @@ var drawScale = function(extent,type) {
     d3.selectAll(".legendgroup").remove();
     if (type === "linear") {
 	var legendgroup = canvas.append("g")
-	    .attrs({"class": "legendgroup",
+	    .attr({"class": "legendgroup",
 		   "transform": "translate("+(w-50-legendwidth)+","+(h-2*legendheight-2)+")",});
 
 	legendgroup.selectAll("rect.legendrect")
     	    .data(legendarray)
     	    .enter()
     	    .append("rect")
-    	    .attrs({"class": function(d,i) { return "q"+i+"-8"; },
+    	    .attr({"class": function(d,i) { return "q"+i+"-8"; },
     		   "x": function(d,i) { return i*legendwidth/chosen_color_scale.length; },
     		   "y": 0,
 		   // "rx": 3,
@@ -650,7 +624,7 @@ var drawScale = function(extent,type) {
 	    .data(extent.map(function(d) { return d.toFixed(2); }))
 	    .enter()
 	    .append("text")
-	    .attrs({"x": function(d,i) {
+	    .attr({"x": function(d,i) {
 		if (i==0) { return 0; }
 		else { return legendwidth-d.width(textsize+"px arial"); } },
     		   "y": legendheight+legendheight, 
@@ -661,14 +635,14 @@ var drawScale = function(extent,type) {
     }
     else {
 	var legendgroup = canvas.append("g")
-	    .attrs({"class": "legendgroup",
+	    .attr({"class": "legendgroup",
 		   "transform": "translate("+(w-20-legendradius)+","+(h-legendradius-30)+")",});
 
-	var arc = d3.arc()
+	var arc = d3.svg.arc()
 	    .outerRadius(legendradius-5)
 	    .innerRadius(0);
 
-	var pie = d3.pie()
+	var pie = d3.layout.pie()
 	    .sort(null)
 	    .startAngle((extent[0]-1)/365*2*Math.PI)
 	    .endAngle((extent[1]-1)/365*2*Math.PI)
@@ -680,16 +654,16 @@ var drawScale = function(extent,type) {
 	    .data(pie(ones))
 	    .enter()
 	    .append("path")
-	    .attrs({"d": arc,
+	    .attr({"d": arc,
 		   "fill": function(d,i) { return chosen_color_scale[i]; },
 		  });
 
         // now go and convert all of the dates to an angle
-        var radial_scale = d3.scaleLinear()
+        var radial_scale = d3.scale.linear()
             .domain([1,365/4+1])
             .range([Math.PI/2,0]);
 
-        var rotation_scale = d3.scaleLinear()
+        var rotation_scale = d3.scale.linear()
             .domain([1,365/4+1])
             .range([90,180]);
 
@@ -710,13 +684,13 @@ var drawScale = function(extent,type) {
 	    .data(increments_moved)
 	    .enter()
 	    .append("text")
-	    .attrs({ // "text-align": "right",
+	    .attr({ // "text-align": "right",
                    "x": function(d,i) { return (legendradius+25)*Math.cos(radial_scale(((d + 365/4) % 365) - 365/4) ); },
                    "y": function(d,i) { return -(legendradius+25)*Math.sin(radial_scale(((d + 365/4) % 365) - 365/4)); },
                 // "transform": function(d,i) { return "rotate("+(((rotation_scale(((d + 365/4) % 365) - 365/4) + 90) % 180) -90)+" "+((legendradius+25)*Math.cos(radial_scale(((d + 365/4) % 365) - 365/4) ))+","+(-(legendradius+25)*Math.sin(radial_scale(((d + 365/4) % 365) - 365/4)))+")"; },
                 "transform": function(d,i) { return "rotate("+(rotation_scale(((d + 365/4) % 365) - 365/4))+" "+((legendradius+25)*Math.cos(radial_scale(((d + 365/4) % 365) - 365/4) ))+","+(-(legendradius+25)*Math.sin(radial_scale(((d + 365/4) % 365) - 365/4)))+")"; },
 		  })
-            .styles({"font-size": "8px"})
+            .style({"font-size": "8px"})
             .text(function(d,i) { 
                 var date = new Date(1900,0,1);
                 date.setTime( date.getTime() + increments[i] * 86400000 );
@@ -732,13 +706,13 @@ var drawScale = function(extent,type) {
 	    .data(increments)
 	    .enter()
 	    .append("line")
-	    .attrs({
+	    .attr({
                    "x1": function(d,i) { return (legendradius-5)*Math.cos(radial_scale(((d + 365/4) % 365) - 365/4) ); },
                    "y1": function(d,i) { return -(legendradius-5)*Math.sin(radial_scale(((d + 365/4) % 365) - 365/4) ); },
                    "x2": function(d,i) { return (legendradius)*Math.cos(radial_scale(((d + 365/4) % 365) - 365/4) ); },
                    "y2": function(d,i) { return -(legendradius)*Math.sin(radial_scale(((d + 365/4) % 365) - 365/4) ); },
 		  })
-                .styles({
+                .style({
             "stroke": "black",
             "stroke-width": 1,            
         });
@@ -772,23 +746,23 @@ var plot_timeline = function() {
 	.attr("width", figwidth)
 	.attr("height", figheight);
 
-    var x = d3.scaleLinear()
+    var x = d3.scale.linear()
 	.domain([full_year_range[0],full_year_range[full_year_range.length-1]])
 	.range([10,width-10]);
 
-    var y =  d3.scaleLinear()
+    var y =  d3.scale.linear()
 	// .domain([-30,130]) // summer temps
 	.domain([0,1])
 	.range([0,height]);
 
     var centerline = canvas.append("line")
-        .attrs({
+        .attr({
             "x1": x(1900),
             "y1": y(0.25),
             "x2": x(2013),
             "y2": y(0.25),
         })
-        .styles({
+        .style({
             "stroke": "black",
             "stroke-width": 2,            
         });
@@ -797,13 +771,13 @@ var plot_timeline = function() {
         .data([1900,1905,1910,1915,1920,1925,1930,1935,1940,1945,1950,1955,1960,1965,1970,1975,1980,1985,1990,1995,2000,2005,2010,2013])
         .enter()
         .append("line")
-        .attrs({
+        .attr({
             "x1": function(d,i) { return x(d); },
             "y1": y(0.0),
             "x2": function(d,i) { return x(d); },
             "y2": y(0.5),
         })
-        .styles({
+        .style({
             "stroke": "black",
             "stroke-width": 1,            
         });
@@ -812,11 +786,11 @@ var plot_timeline = function() {
         .data([1900,1905,1910,1915,1920,1925,1930,1935,1940,1945,1950,1955,1960,1965,1970,1975,1980,1985,1990,1995,2000,2005,2010,2013])
         .enter()
         .append("text")
-        .attrs({
+        .attr({
             "x": function(d,i) { return x(d-1.3); },
             "y": height-2,
         })
-        .styles({
+        .style({
             // "stroke": "black",
             "text-align": "center",
             "font-size": 9,
@@ -825,14 +799,14 @@ var plot_timeline = function() {
     
 
     var curr_window = canvas.append("rect")
-        .attrs({
+        .attr({
             "x": x(full_year_range[yearIndex]),
             "y": y(0.0),
             "width": x(parseFloat(currentWindow)+full_year_range[0])-x(full_year_range[0]),
             "height": y(0.5),
             "class": "currentwindow",
         })
-        .styles({
+        .style({
             "border": "blue",
             "fill": "blue",
             "opacity": 0.5,
@@ -857,8 +831,6 @@ var dataloaded = function(error,results) {
     geoJson = results[0];
     stateFeatures = topojson.feature(geoJson,geoJson.objects.states).features;
 
-    var that = this;
-    
     // go ahead and draw the map right here.
     // worry about separating logic later
 
@@ -883,31 +855,21 @@ var dataloaded = function(error,results) {
 	.attr("width", w)
 	.attr("height", h);
     
-    var projection = d3.geoAlbersUsa()
+    projection = d3.geo.albersUsa()
 	.translate([w/2, h/2-10])
 	.scale(w*1.2); // 1.37 is max size
 
-    var path = d3.geoPath()
+    var path = d3.geo.path()
 	.projection(projection);
 
-    var voronoi = d3.voronoi()
-        .extent([[-1, -1], [w + 1, h + 1]]);
-
-    var states = canvas.selectAll("path")
+    states = canvas.selectAll("path")
 	.data(stateFeatures);
     
-    // canvas.selectAll("defs").append("defs").append("clipPath")
-    // var stateclips = canvas.append("defs").append("clipPath")
-    var stateclips = canvas.append("defs").append("clipPath")
-        .attr("id","clip-allstates")
-        .selectAll("path.stateclippers")
-        .data(stateFeatures)
-        .enter()
-        .append("path")
-        .attr("class","stateclippers")
-        .attr("d", function(d,i) { return path(d.geometry); } );
-
-    // states.merge(states);
+    states.enter()
+	.append("path")
+	.attr("d", function(d,i) { return path(d.geometry); } )
+	.attr("id", function(d,i) { return d.properties.name; } )
+	.attr("class",function(d,i) { return "state"; } );
 
     // states.exit().remove();
 
@@ -915,27 +877,35 @@ var dataloaded = function(error,results) {
     // 	.attr("stroke","black")
     // 	.attr("stroke-width",".7");
 
+
+
     var popuptimer;
 
-    var hovergroup = figure.append("div").attr("class", "hoverinfogroup")
-	// .attr("transform", "translate("+(x+hoverboxxoffset+axeslabelmargin.left)+","+(d3.min([d3.max([0,y-hoverboxheight/2-hoverboxyoffset]),height-hoverboxheight]))+")")
-	.style("position", "absolute")
-	.style("top", "100px")
-	.style("left", "100px")
-	.style("visibility", "hidden");
+    var hovergroup = figure.append("div").attr({
+	"class": "hoverinfogroup",
+	// "transform": "translate("+(x+hoverboxxoffset+axeslabelmargin.left)+","+(d3.min([d3.max([0,y-hoverboxheight/2-hoverboxyoffset]),height-hoverboxheight]))+")", 
+    })
+	.style({
+	    "position": "absolute",
+	    "top": "100px",
+	    "left": "100px",
+	    "visibility": "hidden",
+	});
 
     function hidehover() {
 	// console.log("hiding hover");
         canvas.selectAll("circle").transition().duration(500).style("opacity","1.0");
 	// canvas.selectAll("circle").attr("r",rmin);
         canvas.selectAll("line").transition().duration(500).style("opacity","1.0");        
-	hovergroup.style("visibility", "hidden");
+	hovergroup.style({
+	    "visibility": "hidden",
+	});
     }
 
     var city_hover = function(d,i) {
 	// console.log(this);
 	// d3.select(this).select("circle").attr("r",rmax);
-        d3.select(this).styles({"stroke":"rgb(50,50,50)","stroke-width":"2px"});
+        
 
 	// canvas.selectAll("circle").transition().duration(500).style("opacity","0.1");
 	// canvas.selectAll("line").transition().duration(500).style("opacity","0.1");
@@ -945,8 +915,8 @@ var dataloaded = function(error,results) {
         
 	// var hoverboxheight = 90;
 	// var hoverboxwidth = 200;
-	var hoverboxyoffset = 0;
-	var hoverboxxoffset = 0;
+	var hoverboxyoffset = 5;
+	var hoverboxxoffset = -20;
 
         // thiscircle = d3.select(this);
 
@@ -956,15 +926,10 @@ var dataloaded = function(error,results) {
         // console.log(x);
         // console.log(y);
 
-        var this_city = locations[i];
-
-        // var x = d3.select(this).attr("my_x");
-        // var y = d3.select(this).attr("my_y");
-        var this_xy = projection([this_city[2],this_city[1]]);
-        var x = this_xy[0];
-        var y = this_xy[1];
+        var x = d3.select(this).attr("my_x");
+        var y = d3.select(this).attr("my_y");
         // console.log(x);
-        // console.log(y);
+        // console.log(y);        
 
         // var hoverboxheightguess = 190;
 	// if ((y+hoverboxheightguess)>h) { y-=(y+hoverboxheightguess-h); }
@@ -972,8 +937,7 @@ var dataloaded = function(error,results) {
 	// tip.show;
 	// console.log(d);
 
-	hovergroup.styles({
-            "pointer-events":"none",
+	hovergroup.style({
 	    "position": "absolute",
 	    "top": (parseFloat(y)+hoverboxyoffset)+"px",
 	    "left": (parseFloat(x)+hoverboxxoffset)+"px",
@@ -982,7 +946,7 @@ var dataloaded = function(error,results) {
         
 	hovergroup.selectAll("p,h3,button,br").remove();
 
-        var city_name_split = this_city[3].split(",");
+        var city_name_split = d[3].split(",");
         var proper_city_name = city_name_split[0].split(" ");
         for (var i=0; i<proper_city_name.length; i++) {
             proper_city_name[i] = proper_city_name[i][0].toUpperCase() + proper_city_name[i].slice(1).toLowerCase();
@@ -998,11 +962,11 @@ var dataloaded = function(error,results) {
 
         if (variableIndex < 2) {
             // go convert the day to an actual date
-            var teletherm_day = (data[parseFloat(this_city[0])][yearIndex]+angle_offset);
+            var teletherm_day = (data[parseFloat(d[0])][yearIndex]+angle_offset);
             var date = new Date(1900,0,1);
             date.setTime( date.getTime() + teletherm_day * 86400000 );
             
-            var teletherm_extent = extradata[parseFloat(this_city[0])][yearIndex];
+            var teletherm_extent = extradata[parseFloat(d[0])][yearIndex];
             if (teletherm_extent === -9999) {
                 teletherm_extent = "unknown";
             }
@@ -1012,7 +976,7 @@ var dataloaded = function(error,results) {
         }
         else {
             hovergroup.append("p")
-                .html(data[parseFloat(this_city[0])][yearIndex].toFixed(2)+" degrees F.");
+                .html(data[parseFloat(d[0])][yearIndex].toFixed(2)+" degrees F.");
         }
 
         hovergroup.append("p")
@@ -1026,35 +990,12 @@ var dataloaded = function(error,results) {
     var city_unhover = function(d,i) {
         // console.log(this);
         // d3.select(this).attr("r",rmin);
-        d3.select(this).styles({"stroke":"none"}); // ,"stroke-width":"1px"});
         hidehover();
     };
     
     var city_clicked = function(d,i) {
-        city_clicked_initial_load(d,i);
+        city_clicked_initial_load(d);
     };
-
-
-
-
-    var locationLatLon = locations.map(function(d) { return [d[2],d[1]];});
-
-    var cityVoronoiCells = canvas.selectAll("path.city")
-        .data(voronoi.polygons(locationLatLon.map(projection)))
-        .enter()
-        // .append("path")
-        .append("polygon")
-        .style("fill","none")
-        .style("stroke","none")
-        .style("stroke-width","0.0px")
-        // .style("opacity","0.8")
-        .attr("class", "station-cell")
-        .attr("clip-path","url(#clip-allstates)")
-        // .attr("d", function(d) { return d ? "M" + d.join("L") + "Z" : null; })
-        .attr("points", function(d) { return d ? d.join(" ") : null; })
-        .on("mouseover",city_hover)
-        .on("mouseout",city_unhover)
-        .on("mousedown",city_clicked);
 
     citygroups = canvas.selectAll("circle.city")
 	.data(locations)
@@ -1063,36 +1004,27 @@ var dataloaded = function(error,results) {
         .attr("class","citygroup")
 	.attr("transform",function(d) { return "translate("+projection([d[2],d[1]])[0]+","+projection([d[2],d[1]])[1]+")"; })
 	.attr("my_x",function(d) { return projection([d[2],d[1]])[0]; })
-	.attr("my_y",function(d) { return projection([d[2],d[1]])[1]; });
+	.attr("my_y",function(d) { return projection([d[2],d[1]])[1]; })
+        .on("mouseover",city_hover)
+        .on("mouseout",city_unhover);    
 
     cities = citygroups
     	.append("circle")
-        .style("pointer-events","none")
-        .attrs({
+        .attr({
 	    "class": "city",
 	    "cx": 0,
 	    "cy": 0,
-            "fill": "rgba(50,50,50,1)",
 	    // "r": rmin,
-	});
-
+	})
+        .on("mousedown",city_clicked);
 
     cityarrows = citygroups.append("line")
-        .style("pointer-events","none")
-        .attrs({
+        .attr({
 	    "x1": 0,
 	    "y1": 0,
 	    "x2": 0,
 	    "y2": 0,
-            "stroke": "rgba(50,50,50,1)",
     	});
-
-    states = states.enter()
-        .append("path")
-        .attr("d", function(d,i) { return path(d.geometry); } )
-        .attr("id", function(d,i) { return d.properties.name; } )
-        .attr("class",function(d,i) { return "state"; } );
-
 
     var my_year = windowDecoder().cached;
     if (my_year === "1") {
@@ -1133,75 +1065,48 @@ var dataloaded = function(error,results) {
     }
 
     canvas.on("mousemove", function() {
-        if (document.getElementById("toggle").checked) {
-            // console.log("mouse:");
-            // console.log(d3.mouse(this));
-            var here = d3.mouse(this);
-            // console.log(here); // [1030, 125]
-            // fisheye.focus([here[0]-w/2,here[1]-h/2]);
-            // console.log(projection.invert(here)); // [-72.4713375653601, 45.14035261565636]
-            // console.log(projection.invert([here[1],here[0]])); // [-112.1040289366678, 12.156636670355539]
-            var inverted = projection.invert([here[0],here[1]]); // [-72.4713375653601, 45.14035261565636]
-            // console.log(inverted); // [-72.4713375653601, 45.14035261565636]
-            // burlington is lat 44, lon -73
-            fisheye.focus(inverted);
+        // console.log("mouse:");
+        // console.log(d3.mouse(this));
+        var here = d3.mouse(this);
+        // console.log(here); // [1030, 125]
+        // fisheye.focus([here[0]-w/2,here[1]-h/2]);
+        // console.log(projection.invert(here)); // [-72.4713375653601, 45.14035261565636]
+        // console.log(projection.invert([here[1],here[0]])); // [-112.1040289366678, 12.156636670355539]
+        var inverted = projection.invert([here[0],here[1]]); // [-72.4713375653601, 45.14035261565636]
+        // console.log(inverted); // [-72.4713375653601, 45.14035261565636]
+        // burlington is lat 44, lon -73
+        fisheye.focus(inverted);
 
-            // of course, the path function takes [longitude, latitude], so -72, 44 for burlington
-            // https://github.com/mbostock/d3/wiki/Geo-Paths
-            // (so that's what it gives back)
+        // of course, the path function takes [longitude, latitude], so -72, 44 for burlington
+        // https://github.com/mbostock/d3/wiki/Geo-Paths
+        // (so that's what it gives back)
 
-            // states.attr("d", function(d) { return path(d.geometry); });
-            // canvas.selectAll("path").data(stateFeatures)
-            // states = canvas.selectAll("path").data(stateFeatures).attr("d", function(d) {
-            states.attr("d",null)
-                .attr("d", function(d,i) {
-                    // console.log("original:");
-                    // console.log(d.geometry);
+        // states.attr("d", function(d) { return path(d.geometry); });
+        // canvas.selectAll("path").data(stateFeatures)
+        // states = canvas.selectAll("path").data(stateFeatures).attr("d", function(d) {
+        states.attr("d",null)
+            .attr("d", function(d) {
+                // console.log("original:");
+                // console.log(d.geometry);
 
-                    if (d.geometry.type === "Polygon") {
-                        var b = d.geometry.coordinates.map(function(d) { return d.map(function(f) { return fisheye(f);}); });
-                    }
-                    else {
-                        var b = d.geometry.coordinates.map(function(d) { return d.map(function(f) { return f.map(function(g) { return fisheye(g); }); }); });
-                    }
-                    // console.log(b);
-                    var c = {type: d.geometry.type, coordinates: b};
-                    
-                    // console.log("new:");
-                    // console.log(c);
+                if (d.geometry.type === "Polygon") {
+                    var b = d.geometry.coordinates.map(function(d) { return d.map(function(f) { return fisheye(f);}); });
+                }
+                else {
+                    var b = d.geometry.coordinates.map(function(d) { return d.map(function(f) { return f.map(function(g) { return fisheye(g); }); }); });
+                }
+                // console.log(b);
+                var c = {type: d.geometry.type, coordinates: b};
+                
+                // console.log("new:");
+                // console.log(c);
 
-                    var d = path(c);
+                return path(c);
+        });
 
-                    stateclips.filter(function(d,j) { return i===j; }).attr("d",d);
-                    // stateclips[i].attr("d",d);
-                    
-                    return d;
-                });
+        // states.exit();
 
-            cityVoronoiCells.data(voronoi.polygons(locationLatLon.map(fisheye).map(projection)))
-                .attr("d", function(d,i) { return d ? "M" + d.join("L") + "Z" : null; });
-
-            // stateclips.attr("d", function(d) {
-            //     // console.log("original:");
-            //     // console.log(d.geometry);
-
-            //     if (d.geometry.type === "Polygon") {
-            //         var b = d.geometry.coordinates.map(function(d) { return d.map(function(f) { return fisheye(f);}); });
-            //     }
-            //     else {
-            //         var b = d.geometry.coordinates.map(function(d) { return d.map(function(f) { return f.map(function(g) { return fisheye(g); }); }); });
-            //     }
-            //     // console.log(b);
-            //     var c = {type: d.geometry.type, coordinates: b};
-            
-            //     // console.log("new:");
-            //     // console.log(c);
-
-            //     return path(c);
-            // });
-
-            citygroups.attr("transform",function(d) { return "translate("+projection(fisheye([d[2],d[1]])).join(",")+")"; });
-        }
+        citygroups.attr("transform",function(d) { return "translate("+projection(fisheye([d[2],d[1]])).join(",")+")"; });
     });
 }
 
